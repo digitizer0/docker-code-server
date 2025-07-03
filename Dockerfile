@@ -18,6 +18,11 @@ RUN \
   apt-get update && \
   apt-get install -y \
     git \
+    rustup \
+    libssl-dev \
+    libsqlite3-dev \
+    gcc \ 
+    pkg-config \
     libatomic1 \
     nano \
     net-tools \
@@ -41,7 +46,9 @@ RUN \
     /tmp/* \
     /var/lib/apt/lists/* \
     /var/tmp/*
-
+RUN \
+  rustup default stable && \
+  rustup component add rustfmt clippy
 # add local files
 COPY /root /
 
