@@ -54,3 +54,4 @@ COPY /root /
 
 # ports and volumes
 EXPOSE 8443
+USER 1000:100
