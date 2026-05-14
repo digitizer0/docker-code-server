@@ -1,0 +1,57 @@
+name: Sync upstream & rebase rust branch
+
+on:
+  schedule:
+    - cron: '0 4 * * *'   # daily at 04:00 UTC
+  workflow_dispatch:        # allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/linuxserver/docker-code-server.git
+
+      - name: Fetch upstream
+        run: git fetch upstream
+
+      - name: Check if upstream master has new commits
+        id: check
+        run: |
+          LOCAL=$(git rev-parse origin/master)
+          UPSTREAM=$(git rev-parse upstream/master)
+          if [ "$LOCAL" = "$UPSTREAM" ]; then
+            echo "up_to_date=true" >> "$GITHUB_OUTPUT"
+            echo "No new commits on upstream master."
+          else
+            echo "up_to_date=false" >> "$GITHUB_OUTPUT"
+            echo "Upstream master is ahead, syncing..."
+          fi
+
+      - name: Sync master with upstream
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          git checkout master
+          git merge --ff-only upstream/master
+          git push origin master
+
+      - name: Rebase rust branch onto master
+        if: steps.check.outputs.up_to_date == 'false'
+        run: |
+          git checkout rust
+          git rebase origin/master
+          git push --force-with-lease origin rust
