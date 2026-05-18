@@ -2,8 +2,8 @@ name: Sync upstream & rebase rust branch
 
 on:
   schedule:
-    - cron: '0 4 * * *'   # daily at 04:00 UTC
-  workflow_dispatch:        # allow manual trigger
+    - cron: "0 4 * * *" # daily at 04:00 UTC
+  workflow_dispatch: # allow manual trigger
 
 jobs:
   sync:
@@ -46,7 +46,7 @@ jobs:
       - name: Sync master with upstream
         if: steps.check.outputs.up_to_date == 'false'
         run: |
-          git checkout master
+          git checkout --track origin/master
           git merge --ff-only upstream/master
           git push origin master
 
