@@ -44,15 +44,34 @@ jobs:
           fi
 
       - name: Sync master with upstream
-        if: steps.check.outputs.up_to_date == 'false'
         run: |
-          git checkout --track origin/master
+          git checkout -B master origin/master
           git merge --ff-only upstream/master
           git push origin master
 
-      - name: Rebase rust branch onto master
-        if: steps.check.outputs.up_to_date == 'false'
+      - name: Merge master into rust
         run: |
           git checkout rust
-          git rebase origin/master
-          git push --force-with-lease origin rust
+          # Gate on rust itself, so a failed run is retried next time
+          if git merge-base --is-ancestor origin/master rust; then
+            echo "rust is current"; exit 0
+          fi
+
+          git merge --no-edit origin/master || {
+            # Workflows deliberately removed on rust: keep them deleted
+            for f in $(git diff --name-only --diff-filter=U -- .github/workflows); do
+              git rm -q -f "$f"
+            done
+            # Generated/bot files: take upstream's version
+            for f in package_versions.txt README.md readme-vars.yml jenkins-vars.yml Jenkinsfile; do
+              git checkout --theirs -- "$f" 2>/dev/null && git add "$f" || true
+            done
+            # Anything left (Dockerfile, s6 run script) is a real conflict: fail loudly
+            if [ -n "$(git diff --name-only --diff-filter=U)" ]; then
+              echo "::error::Manual conflict resolution needed"
+              git diff --name-only --diff-filter=U
+              exit 1
+            fi
+            git commit --no-edit
+          }
+          git push origin rust
